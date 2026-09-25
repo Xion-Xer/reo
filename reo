@@ -1,0 +1,247 @@
+#!/usr/bin/env bash
+
+# =========================================
+# COLORS
+# =========================================
+
+RESET="\033[0m"
+BOLD="\033[1m"
+DIM="\033[2m"
+ITALIC="\033[3m"
+
+RED="\033[38;5;196m"
+GREEN="\033[38;5;82m"
+YELLOW="\033[38;5;220m"
+CYAN="\033[38;5;51m"
+MAGENTA="\033[38;5;213m"
+WHITE="\033[97m"
+GRAY="\033[38;5;240m"
+
+BRIGHT_CYAN="\033[96m"
+BRIGHT_GREEN="\033[92m"
+BRIGHT_WHITE="\033[97m"
+
+# =========================================
+# REO ROOT
+# =========================================
+
+ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PLUGIN_DIR="${REO_PLUGIN_DIR:-$ROOT_DIR/apps}"
+
+CMD=$1
+shift
+
+# =========================================
+# GUARDS
+# =========================================
+
+if [[ ! -d "$PLUGIN_DIR" ]]; then
+    echo ""
+    echo -e "  ${RED}${BOLD}╔══════════════════════════════════╗${RESET}"
+    echo -e "  ${RED}${BOLD}║          !! ERROR !!             ║${RESET}"
+    echo -e "  ${RED}${BOLD}╚══════════════════════════════════╝${RESET}"
+    echo ""
+    echo -e "  ${WHITE}${BOLD}Plugin directory not found:${RESET}"
+    echo -e "  ${YELLOW}${BOLD}$PLUGIN_DIR${RESET}"
+    echo ""
+    echo -e "  ${GRAY}${BOLD}FIX »${RESET}  ${CYAN}${BOLD}mkdir -p \"$PLUGIN_DIR\"${RESET}"
+    echo ""
+    exit 1
+fi
+
+# =========================================
+# HOME
+# =========================================
+
+if [[ -z "$CMD" ]]; then
+    echo ""
+    echo -e "${BRIGHT_CYAN}${BOLD}  ╔═══════════════════════════════════╗${RESET}"
+    echo -e "${BRIGHT_CYAN}${BOLD}  ║                                   ║${RESET}"
+    echo -e "${BRIGHT_CYAN}${BOLD}  ║     ██████╗ ███████╗ ██████╗      ║${RESET}"
+    echo -e "${BRIGHT_CYAN}${BOLD}  ║     ██╔══██╗██╔════╝██╔═══██╗     ║${RESET}"
+    echo -e "${BRIGHT_CYAN}${BOLD}  ║     ██████╔╝█████╗  ██║   ██║     ║${RESET}"
+    echo -e "${BRIGHT_CYAN}${BOLD}  ║     ██╔══██╗██╔══╝  ██║   ██║     ║${RESET}"
+    echo -e "${BRIGHT_CYAN}${BOLD}  ║     ██║  ██║███████╗╚██████╔╝     ║${RESET}"
+    echo -e "${BRIGHT_CYAN}${BOLD}  ║     ╚═╝  ╚═╝╚══════╝ ╚═════╝      ║${RESET}"
+    echo -e "${BRIGHT_CYAN}${BOLD}  ║                                   ║${RESET}"
+    echo -e "${BRIGHT_CYAN}${BOLD}  ╚═══════════════════════════════════╝${RESET}"
+    echo ""
+    echo -e "  ${WHITE}${BOLD}Welcome to ${MAGENTA}${BOLD}REO CLI${RESET}"
+    echo ""
+    echo -e "  ${CYAN}${BOLD}reo help${RESET}   ${GRAY}show all available plugins${RESET}"
+    echo ""
+    exit 0
+fi
+
+# =========================================
+# HELP (STYLIZED INTERACTIVE MENU)
+# =========================================
+
+if [[ "$CMD" == "help" ]]; then
+    
+    plugin_names=()
+    plugin_descs=()
+    
+    for file in "$PLUGIN_DIR"/*.sh; do
+        [[ -f "$file" ]] || continue
+
+        NAME=$(grep "^# name:" "$file" | cut -d ':' -f2- | xargs)
+        DESC=$(grep "^# description:" "$file" | cut -d ':' -f2- | xargs)
+
+        if [[ -n "$NAME" ]]; then
+            plugin_names+=("$NAME")
+            plugin_descs+=("${DESC:-(no description)}")
+        fi
+    done
+
+    
+    if [[ ${#plugin_names[@]} -eq 0 ]]; then
+        echo ""
+        echo -e "  ${RED}${BOLD}╔══════════════════════════════════╗${RESET}"
+        echo -e "  ${RED}${BOLD}║            REO HELP              ║${RESET}"
+        echo -e "  ${RED}${BOLD}╚══════════════════════════════════╝${RESET}"
+        echo ""
+        echo -e "  ${YELLOW}[!] No plugins found in: $PLUGIN_DIR${RESET}"
+        echo ""
+        exit 0
+    fi
+
+    
+    plugin_names+=("Back to System")
+    plugin_descs+=("")
+
+    selected_plugin=0
+
+    
+    draw_help_menu() {
+        clear
+        echo ""
+        echo -e "  ${BRIGHT_CYAN}${BOLD}╔══════════════════════════════════╗${RESET}"
+        echo -e "  ${BRIGHT_CYAN}${BOLD}║            REO HELP              ║${RESET}"
+        echo -e "  ${BRIGHT_CYAN}${BOLD}╚══════════════════════════════════╝${RESET}"
+        echo ""
+
+        for i in "${!plugin_names[@]}"; do
+            if [ "$i" -eq "$selected_plugin" ]; then
+                # Highlighted row styling
+                if [ "$i" -eq $((${#plugin_names[@]} - 1)) ]; then
+                    echo -e "  ${RED}${BOLD}❯ ${plugin_names[$i]}${RESET}"
+                else
+                    echo -e "  ${BRIGHT_GREEN}${BOLD}❯ ${BRIGHT_WHITE}${plugin_names[$i]}${RESET}  ${CYAN}-->${RESET}  ${BRIGHT_CYAN}${BOLD}${plugin_descs[$i]}${RESET}"
+                fi
+            else
+                # Regular dull view row styling
+                if [ "$i" -eq $((${#plugin_names[@]} - 1)) ]; then
+                    echo -e "    ${GRAY}${plugin_names[$i]}${RESET}"
+                else
+                    echo -e "    ${GRAY}${plugin_names[$i]}${RESET}  ${GRAY}-->${RESET}  ${DIM}${WHITE}${plugin_descs[$i]}${RESET}"
+                fi
+            fi
+        done
+
+        echo ""
+        echo -e "  ${GRAY}↑ ↓ arrows + ENTER to execute${RESET}"
+        echo ""
+    }
+
+    
+    while true; do
+        draw_help_menu
+
+        read -rsn1 key
+
+        if [[ $key == $'\x1b' ]]; then
+            read -rsn2 key
+            case $key in
+                '[A') # Arrow Up
+                    ((selected_plugin--))
+                    [ $selected_plugin -lt 0 ] && selected_plugin=$((${#plugin_names[@]} - 1))
+                    ;;
+                '[B') # Arrow Down
+                    ((selected_plugin++))
+                    [ $selected_plugin -ge ${#plugin_names[@]} ] && selected_plugin=0
+                    ;;
+            esac
+
+        elif [[ $key == "" ]]; then # Enter key pressed
+            # Check if user selected the last option ("Back to System")
+            if [ "$selected_plugin" -eq $((${#plugin_names[@]} - 1)) ]; then
+                clear
+                exit 0
+            fi
+
+            # Execute the chosen command file
+            CHOSEN_CMD="${plugin_names[$selected_plugin]}"
+            clear
+            echo ""
+            echo -e "${GREEN}[ RUN ]${RESET} Executing: ${BRIGHT_CYAN}${BOLD}${CHOSEN_CMD}${RESET}..."
+            echo -e "${GRAY}--------------------------------------------------${RESET}"
+            echo ""
+            
+            # Run the plugin script natively
+            bash "$PLUGIN_DIR/$CHOSEN_CMD.sh"
+            
+            echo ""
+            echo -e "${GRAY}--------------------------------------------------${RESET}"
+            echo -e "${BRIGHT_GREEN}Execution finished. Press any key to return to menu...${RESET}"
+            read -n 1 -s
+        fi
+    done
+fi
+
+# =========================================
+# PLUGIN LOADER
+# =========================================
+
+shopt -s nullglob
+for file in "$PLUGIN_DIR"/*.sh "$PLUGIN_DIR"/*/*.sh; do
+    [[ -f "$file" ]] || continue
+    NAME=$(grep "^# name:" "$file" | cut -d ':' -f2- | xargs)
+    ALIAS=$(grep "^# alias:" "$file" | cut -d ':' -f2- | xargs)
+
+    if [[ "$CMD" == "$NAME" || "$CMD" == "$ALIAS" ]]; then
+        if [[ ! -x "$file" ]]; then
+            chmod +x "$file"
+        fi
+        shopt -u nullglob
+        bash "$file" "$@"
+        exit $?
+    fi
+done
+
+# =========================================
+# UNKNOWN COMMAND
+# =========================================
+
+echo ""
+echo -e "  ${RED}${BOLD}╔══════════════════════════════════╗${RESET}"
+echo -e "  ${RED}${BOLD}║         !! UNKNOWN CMD !!        ║${RESET}"
+echo -e "  ${RED}${BOLD}╚══════════════════════════════════╝${RESET}"
+echo ""
+echo -e "  ${WHITE}${BOLD}reo ${YELLOW}${BOLD}'${CMD}'${RESET}  ${GRAY}── not found${RESET}"
+echo ""
+
+suggestions=()
+shopt -s nullglob
+for file in "$PLUGIN_DIR"/*.sh "$PLUGIN_DIR"/*/*.sh; do
+    [[ -f "$file" ]] || continue
+    NAME=$(grep "^# name:" "$file" | cut -d ':' -f2- | xargs)
+    ALIAS=$(grep "^# alias:" "$file" | cut -d ':' -f2- | xargs)
+    if [[ -n "$NAME" && ("$NAME" == *"$CMD"* || "$CMD" == *"$NAME"* || "$ALIAS" == *"$CMD"*) ]]; then
+        suggestions+=("$NAME")
+    fi
+done
+
+if [[ ${#suggestions[@]} -gt 0 ]]; then
+    echo -e "  ${MAGENTA}${BOLD}DID YOU MEAN?${RESET}"
+    echo -e "  ${GRAY}──────────────────${RESET}"
+    for s in "${suggestions[@]}"; do
+        echo -e "  ${CYAN}${BOLD}❯ reo ${BRIGHT_WHITE}${BOLD}${s}${RESET}"
+    done
+    echo ""
+fi
+
+echo -e "  ${GRAY}${BOLD}HINT »${RESET}  run ${CYAN}${BOLD}reo help${RESET} to see all commands"
+echo ""
+shopt -u nullglob
+exit 1
